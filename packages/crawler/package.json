@@ -1,0 +1,22 @@
+{
+  "name": "@auditor/crawler",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "@auditor/contracts": "workspace:*",
+    "@auditor/shared": "workspace:*",
+    "cheerio": "^1.0.0",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.19",
+    "@types/xml2js": "^0.4.14",
+    "typescript": "^5.7.3"
+  }
+}
+

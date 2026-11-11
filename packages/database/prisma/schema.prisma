@@ -1,0 +1,574 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum AuditStatus {
+  QUEUED
+  DISCOVERING
+  CRAWLING
+  TESTING
+  ANALYZING
+  REPORTING
+  COMPLETED
+  FAILED
+  CANCELLED
+  PARTIALLY_COMPLETED
+}
+
+enum IssueSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFORMATIONAL
+}
+
+enum IssueCategory {
+  FUNCTIONAL
+  BROKEN_LINK
+  SEO
+  PERFORMANCE
+  ACCESSIBILITY
+  RESPONSIVE
+  SECURITY_CONFIGURATION
+  NETWORK
+  RESOURCE
+  CONTENT
+}
+
+enum IssueStatus {
+  NEW
+  PERSISTENT
+  RESOLVED
+  REOPENED
+  CHANGED
+  UNVERIFIED
+}
+
+enum InteractionOutcome {
+  NAVIGATION
+  MODAL_OPENED
+  DRAWER_OPENED
+  DROPDOWN_OPENED
+  ACCORDION_EXPANDED
+  DOWNLOAD_STARTED
+  API_ACTION
+  EXTERNAL_LINK
+  NO_OBSERVABLE_CHANGE
+  CLICK_FAILED
+  UNKNOWN
+}
+
+enum NetworkErrorType {
+  CLIENT_ERROR
+  SERVER_ERROR
+  NETWORK_FAILURE
+  TIMEOUT
+  CORS_ERROR
+  THIRD_PARTY_FAILURE
+  UNKNOWN
+}
+
+enum ScheduleFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+model User {
+  id               String               @id @default(uuid())
+  email            String               @unique
+  passwordHash     String
+  name             String
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  memberships      OrganizationMember[]
+  notifications    Notification[]
+  auditsTriggered  Audit[]              @relation("UserAudits")
+
+  @@index([email])
+}
+
+model Organization {
+  id          String               @id @default(uuid())
+  name        String
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  members     OrganizationMember[]
+  websites    Website[]
+  usageRecords UsageRecord[]
+}
+
+model OrganizationMember {
+  id             String       @id @default(uuid())
+  role           Role         @default(MEMBER)
+  userId         String
+  organizationId String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+model Website {
+  id                  String                @id @default(uuid())
+  organizationId      String
+  organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name                String
+  url                 String
+  normalizedDomain    String
+  description         String?
+  category            String?
+  isActive            Boolean               @default(true)
+  lastAuditedAt       DateTime?
+  nextScheduledAt     DateTime?
+  healthScore         Float?                @default(100.0)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  configuration       WebsiteConfiguration?
+  audits              Audit[]
+  schedules           Schedule[]
+  issues              Issue[]
+
+  @@unique([organizationId, normalizedDomain])
+  @@index([organizationId])
+  @@index([normalizedDomain])
+}
+
+model WebsiteConfiguration {
+  id                  String   @id @default(uuid())
+  websiteId           String   @unique
+  website             Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  maxPages            Int      @default(50)
+  maxDepth            Int      @default(3)
+  crawlDelayMs        Int      @default(200)
+  requestTimeoutMs    Int      @default(30000)
+  userAgent           String?
+  viewportWidth       Int      @default(1440)
+  viewportHeight      Int      @default(900)
+  testInteractions    Boolean  @default(true)
+  testForms           Boolean  @default(true)
+  testAccessibility   Boolean  @default(true)
+  testPerformance     Boolean  @default(true)
+  testResponsive      Boolean  @default(true)
+  allowedDomains      String[] @default([])
+  excludedPaths       String[] @default([])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Audit {
+  id                  String                @id @default(uuid())
+  websiteId           String
+  website             Website               @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  triggeredById       String?
+  triggeredBy         User?                 @relation("UserAudits", fields: [triggeredById], references: [id], onDelete: SetNull)
+  status              AuditStatus           @default(QUEUED)
+  progressPercent     Int                   @default(0)
+  currentStep         String?
+  errorMessage        String?
+  overallScore        Float?
+  performanceScore    Float?
+  accessibilityScore  Float?
+  seoScore            Float?
+  bestPracticesScore  Float?
+  pagesCrawled        Int                   @default(0)
+  linksChecked        Int                   @default(0)
+  interactionsTested  Int                   @default(0)
+  issuesFound         Int                   @default(0)
+  startedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  jobs                AuditJob[]
+  pages               Page[]
+  linkChecks          LinkCheck[]
+  interactionTests    InteractionTest[]
+  formTests           FormTest[]
+  networkEvents       NetworkEvent[]
+  consoleEvents       ConsoleEvent[]
+  seoResults          SEOResult[]
+  accessibilityResults AccessibilityResult[]
+  performanceResults  PerformanceResult[]
+  responsiveResults   ResponsiveResult[]
+  issueOccurrences    IssueOccurrence[]
+  baseline            AuditBaseline?
+  artifacts           Artifact[]
+  aiAnalysis          AIAnalysis?
+
+  @@index([websiteId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AuditJob {
+  id            String      @id @default(uuid())
+  auditId       String
+  audit         Audit       @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  queueName     String
+  bullJobId     String?
+  status        AuditStatus @default(QUEUED)
+  progress      Int         @default(0)
+  attempts      Int         @default(0)
+  maxAttempts   Int         @default(3)
+  error         String?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime    @default(now())
+
+  @@index([auditId])
+  @@index([status])
+}
+
+model Page {
+  id            String      @id @default(uuid())
+  auditId       String
+  audit         Audit       @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  url           String
+  path          String
+  statusCode    Int?
+  title         String?
+  loadTimeMs    Int?
+  pageSizeBytes Int?
+  isIndexable   Boolean     @default(true)
+  hasSitemap    Boolean     @default(false)
+  discoveredAt  DateTime    @default(now())
+
+  resources     Resource[]
+
+  @@unique([auditId, url])
+  @@index([auditId])
+  @@index([url])
+}
+
+model Resource {
+  id            String   @id @default(uuid())
+  pageId        String
+  page          Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  url           String
+  type          String   // image, script, stylesheet, font, document
+  statusCode    Int?
+  sizeBytes     Int?
+  durationMs    Int?
+  isThirdParty  Boolean  @default(false)
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+
+  @@index([pageId])
+}
+
+model LinkCheck {
+  id            String   @id @default(uuid())
+  auditId       String
+  audit         Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  sourceUrl     String
+  targetUrl     String
+  anchorText    String?
+  statusCode    Int?
+  isExternal    Boolean  @default(false)
+  isBroken      Boolean  @default(false)
+  durationMs    Int?
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+
+  @@index([auditId])
+  @@index([isBroken])
+}
+
+model InteractionTest {
+  id                String             @id @default(uuid())
+  auditId           String
+  audit             Audit              @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  pageUrl           String
+  elementLabel      String?
+  elementTag        String
+  elementSelector   String
+  accessibleName    String?
+  initialState      String?
+  outcome           InteractionOutcome @default(UNKNOWN)
+  beforeUrl         String
+  afterUrl          String?
+  beforeScreenshot  String?
+  afterScreenshot   String?
+  executionTimeMs   Int?
+  consoleErrors     String[]           @default([])
+  networkErrors     String[]           @default([])
+  isWorking         Boolean            @default(true)
+  notes             String?
+  createdAt         DateTime           @default(now())
+
+  @@index([auditId])
+  @@index([outcome])
+}
+
+model FormTest {
+  id              String   @id @default(uuid())
+  auditId         String
+  audit           Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  pageUrl         String
+  formSelector    String
+  actionUrl       String?
+  method          String?  @default("POST")
+  fieldsCount     Int      @default(0)
+  requiredCount   Int      @default(0)
+  hasValidLabels  Boolean  @default(true)
+  hasSubmitButton Boolean  @default(true)
+  issues          String[] @default([])
+  createdAt       DateTime @default(now())
+
+  @@index([auditId])
+}
+
+model NetworkEvent {
+  id            String           @id @default(uuid())
+  auditId       String
+  audit         Audit            @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  pageUrl       String
+  requestUrl    String
+  method        String
+  resourceType  String?
+  statusCode    Int?
+  durationMs    Int?
+  errorType     NetworkErrorType @default(UNKNOWN)
+  errorMessage  String?
+  isRedacted    Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+
+  @@index([auditId])
+  @@index([errorType])
+}
+
+model ConsoleEvent {
+  id          String   @id @default(uuid())
+  auditId     String
+  audit       Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  pageUrl     String
+  level       String   // error, warning, info
+  message     String
+  source      String?
+  line        Int?
+  createdAt   DateTime @default(now())
+
+  @@index([auditId])
+  @@index([level])
+}
+
+model SEOResult {
+  id              String   @id @default(uuid())
+  auditId         String
+  audit           Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  pageUrl         String
+  title           String?
+  titleLength     Int?
+  metaDescription String?
+  descriptionLength Int?
+  h1Count         Int      @default(0)
+  h1Text          String?
+  canonicalUrl    String?
+  robotsDirectives String?
+  hasOgTitle      Boolean  @default(false)
+  hasOgImage      Boolean  @default(false)
+  missingAltCount Int      @default(0)
+  schemaTypes     String[] @default([])
+  score           Float?
+  createdAt       DateTime @default(now())
+
+  @@unique([auditId, pageUrl])
+  @@index([auditId])
+}
+
+model AccessibilityResult {
+  id          String        @id @default(uuid())
+  auditId     String
+  audit       Audit         @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  pageUrl     String
+  ruleId      String
+  impact      IssueSeverity @default(MEDIUM)
+  selector    String?
+  htmlSnippet String?
+  explanation String
+  suggestedFix String?
+  createdAt   DateTime      @default(now())
+
+  @@index([auditId])
+  @@index([ruleId])
+}
+
+model PerformanceResult {
+  id                 String   @id @default(uuid())
+  auditId            String
+  audit              Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  pageUrl            String
+  score              Float
+  firstContentfulPaintMs Float?
+  largestContentfulPaintMs Float?
+  cumulativeLayoutShift Float?
+  totalBlockingTimeMs Float?
+  speedIndexMs       Float?
+  timeToFirstByteMs  Float?
+  totalByteWeight    Int?
+  renderBlockingCount Int?
+  createdAt          DateTime @default(now())
+
+  @@unique([auditId, pageUrl])
+  @@index([auditId])
+}
+
+model ResponsiveResult {
+  id             String   @id @default(uuid())
+  auditId        String
+  audit          Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  pageUrl        String
+  deviceLabel    String   // Desktop, Laptop, Tablet, Mobile, Small mobile
+  viewportWidth  Int
+  viewportHeight Int
+  hasOverflowX   Boolean  @default(false)
+  clippedContent Boolean  @default(false)
+  screenshotUrl  String?
+  createdAt      DateTime @default(now())
+
+  @@index([auditId])
+}
+
+model Issue {
+  id               String          @id @default(uuid())
+  websiteId        String
+  website          Website         @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  fingerprint      String          // unique hash of issue type + selector/page
+  title            String
+  description      String
+  category         IssueCategory
+  severity         IssueSeverity
+  status           IssueStatus     @default(NEW)
+  confidence       Float           @default(1.0)
+  firstDetectedAt  DateTime        @default(now())
+  lastDetectedAt   DateTime        @default(now())
+  resolvedAt       DateTime?
+  suggestedFix     String?
+  occurrencesCount Int             @default(1)
+
+  occurrences      IssueOccurrence[]
+
+  @@unique([websiteId, fingerprint])
+  @@index([websiteId])
+  @@index([severity])
+  @@index([category])
+  @@index([status])
+  @@index([fingerprint])
+}
+
+model IssueOccurrence {
+  id              String        @id @default(uuid())
+  issueId         String
+  issue           Issue         @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  auditId         String
+  audit           Audit         @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  affectedUrl     String
+  elementSelector String?
+  evidenceJson    Json
+  createdAt       DateTime      @default(now())
+
+  @@index([issueId])
+  @@index([auditId])
+}
+
+model AuditBaseline {
+  id              String   @id @default(uuid())
+  auditId         String   @unique
+  audit           Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  previousAuditId String?
+  newIssuesCount  Int      @default(0)
+  resolvedCount   Int      @default(0)
+  persistentCount Int      @default(0)
+  scoreDelta      Float    @default(0.0)
+  createdAt       DateTime @default(now())
+}
+
+model Schedule {
+  id             String            @id @default(uuid())
+  websiteId      String
+  website        Website           @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  frequency      ScheduleFrequency @default(WEEKLY)
+  dayOfWeek      Int?              @default(1) // Monday
+  hourOfDay      Int               @default(3) // 3 AM
+  timeZone       String            @default("UTC")
+  isActive       Boolean           @default(true)
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([websiteId])
+  @@index([isActive])
+  @@index([nextRunAt])
+}
+
+model Artifact {
+  id          String   @id @default(uuid())
+  auditId     String
+  audit       Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  type        String   // screenshot, html_report, pdf_report
+  fileName    String
+  fileSize    Int
+  mimeType    String
+  storageKey  String
+  publicUrl   String?
+  createdAt   DateTime @default(now())
+
+  @@index([auditId])
+  @@index([type])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   // audit_completed, audit_failed, critical_issue
+  isRead    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AIAnalysis {
+  id                   String   @id @default(uuid())
+  auditId              String   @unique
+  audit                Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  executiveSummary     String
+  businessImpact       String
+  keyRecommendations   Json     // array of recommendation objects
+  actionPlan           Json     // prioritized steps
+  tokensUsed           Int      @default(0)
+  modelName            String   @default("gpt-4o-mini")
+  createdAt            DateTime @default(now())
+}
+
+model UsageRecord {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  metric         String       // audits_count, ai_tokens, storage_mb
+  quantity       Int          @default(1)
+  periodDate     DateTime     @default(now())
+
+  @@index([organizationId])
+}
+

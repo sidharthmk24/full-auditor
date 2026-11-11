@@ -1,0 +1,16 @@
+FROM mcr.microsoft.com/playwright:v1.50.1-jammy AS base
+RUN npm install -g pnpm@12.18.0
+
+WORKDIR /app
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages ./packages
+COPY apps/worker ./apps/worker
+
+RUN pnpm approve-builds --all
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @auditor/database db:generate
+RUN pnpm --filter "./packages/*" build
+RUN pnpm --filter @auditor/worker build
+
+CMD ["node", "apps/worker/dist/main.js"]
+

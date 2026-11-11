@@ -1,0 +1,29 @@
+{
+  "name": "@auditor/worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/main.ts",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@auditor/ai": "workspace:*",
+    "@auditor/browser-engine": "workspace:*",
+    "@auditor/contracts": "workspace:*",
+    "@auditor/crawler": "workspace:*",
+    "@auditor/database": "workspace:*",
+    "@auditor/issue-engine": "workspace:*",
+    "@auditor/reporting": "workspace:*",
+    "@auditor/shared": "workspace:*",
+    "@auditor/storage": "workspace:*",
+    "bullmq": "^5.41.6",
+    "dotenv": "^18.0.9",
+    "ioredis": "^5.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.19",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

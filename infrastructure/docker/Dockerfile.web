@@ -1,0 +1,17 @@
+FROM node:20-alpine AS base
+RUN npm install -g pnpm@12.18.0
+
+WORKDIR /app
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY packages ./packages
+COPY apps/web ./apps/web
+
+RUN pnpm approve-builds --all
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @auditor/database db:generate
+RUN pnpm --filter "./packages/*" build
+RUN pnpm --filter @auditor/web build
+
+EXPOSE 3000
+CMD ["pnpm", "--filter", "@auditor/web", "start"]
+

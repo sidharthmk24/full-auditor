@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controlled Audit Test Site</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; line-height: 1.6; }
+    .btn { padding: 8px 16px; background: #0d9488; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-broken { background: #ef4444; }
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); padding: 40px; }
+    .modal.open { display: block; }
+    .modal-content { background: white; padding: 20px; max-width: 400px; border-radius: 8px; }
+    .accordion-content { display: none; padding: 10px; background: #f1f5f9; }
+    .accordion-content.expanded { display: block; }
+    .wide-container { width: 1500px; background: #fee2e2; padding: 10px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Controlled Audit Benchmark Site</h1>
+
+  <!-- 1. Interactive Elements -->
+  <section>
+    <h2>Interactive Controls</h2>
+    <!-- Working Modal Trigger -->
+    <button id="open-modal-btn" class="btn" role="button" onclick="document.getElementById('demo-modal').classList.add('open')">
+      Open Test Modal
+    </button>
+
+    <!-- Broken Button (throws unhandled JS error) -->
+    <button id="broken-btn" class="btn btn-broken" onclick="throw new Error('Uncaught button action exception!')">
+      Broken Trigger
+    </button>
+
+    <!-- Accordion Control -->
+    <button id="accordion-toggle" class="btn" aria-expanded="false" onclick="
+      const c = document.getElementById('acc-content');
+      const exp = this.getAttribute('aria-expanded') === 'true';
+      this.setAttribute('aria-expanded', !exp);
+      c.classList.toggle('expanded');
+    ">Toggle Accordion</button>
+    <div id="acc-content" class="accordion-content">
+      Accordion detailed information.
+    </div>
+
+    <!-- Modal Dialog -->
+    <div id="demo-modal" class="modal" role="dialog" aria-modal="true">
+      <div class="modal-content">
+        <h3>Interactive Modal</h3>
+        <p>Modal has successfully rendered.</p>
+        <button class="btn" onclick="document.getElementById('demo-modal').classList.remove('open')">Close Modal</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Form Testing (with accessibility and validation defects) -->
+  <section>
+    <h2>Contact & Enquiry Form</h2>
+    <form id="contact-form" action="/api/submit" method="POST">
+      <!-- Missing label -->
+      <div>
+        <input type="text" name="unlabeled_name" placeholder="Name without label" required>
+      </div>
+      <div>
+        <label for="user-email">Email:</label>
+        <input id="user-email" type="email" name="email" required>
+      </div>
+      <button type="submit" class="btn">Submit Form</button>
+    </form>
+  </section>
+
+  <!-- 3. Broken and Working Links -->
+  <section>
+    <h2>Link Checking</h2>
+    <ul>
+      <li><a href="https://example.com" target="_blank">Valid External Link</a></li>
+      <li><a href="https://example.com/non-existent-broken-404-page">Broken External Link (404)</a></li>
+    </ul>
+  </section>
+
+  <!-- 4. Responsive Overflow Problem -->
+  <div class="wide-container">
+    Horizontal overflow trigger: element exceeds mobile viewports.
+  </div>
+
+  <script>
+    // Trigger intentional console warning
+    console.warn('Controlled benchmark test site initialized.');
+  </script>
+</body>
+</html>
+
