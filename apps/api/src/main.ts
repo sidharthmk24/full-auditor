@@ -10,7 +10,9 @@ import * as fs from 'fs';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { cors: true });
 
-  const uploadsDir = path.resolve('D:/MEARN STACK/website-full-auditor/uploads');
+  const uploadsDir = process.env.STORAGE_LOCAL_DIR
+    ? path.resolve(process.env.STORAGE_LOCAL_DIR)
+    : path.resolve(process.cwd(), 'uploads');
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }

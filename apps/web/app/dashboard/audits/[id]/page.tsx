@@ -28,7 +28,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { Header } from '../../../../components/layout/header';
-import { fetchApi } from '../../../../lib/api';
+import { fetchApi, getApiBaseUrl } from '../../../../lib/api';
 
 export default function AuditDetailPage() {
   const params = useParams();
@@ -73,8 +73,9 @@ export default function AuditDetailPage() {
     if (!isRunning) return;
 
     let eventSource: EventSource | null = null;
+    const apiBase = getApiBaseUrl();
     try {
-      eventSource = new EventSource(`http://localhost:4000/api/v1/audits/${id}/stream`);
+      eventSource = new EventSource(`${apiBase}/audits/${id}/stream`);
       eventSource.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data);
@@ -90,7 +91,7 @@ export default function AuditDetailPage() {
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`http://localhost:4000/api/v1/audits/${id}/live-frame`);
+        const res = await fetch(`${apiBase}/audits/${id}/live-frame`);
         if (res.ok) {
           const data = await res.json();
           if (data.liveFrame) setLiveStreamFrame(data.liveFrame);
@@ -126,7 +127,8 @@ export default function AuditDetailPage() {
   const getAssetUrl = (url?: string) => {
     if (!url) return '';
     if (url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) return url;
-    return `http://localhost:4000${url.startsWith('/') ? '' : '/'}${url}`;
+    const apiBase = getApiBaseUrl().replace(/\/api\/v1\/?$/, '');
+    return `${apiBase}${url.startsWith('/') ? '' : '/'}${url}`;
   };
 
   const uiBreakArtifacts = (audit.artifacts || []).filter((a: any) => a.type === 'ui_break');
@@ -142,6 +144,8 @@ export default function AuditDetailPage() {
     selectedDevice === 'Desktop'
       ? desktopShot
       : responsiveShots.find((r: any) => r.deviceLabel === selectedDevice)?.screenshotUrl;
+
+  const apiBase = getApiBaseUrl();
 
   return (
     <div>
@@ -163,7 +167,7 @@ export default function AuditDetailPage() {
 
           <div className="flex items-center gap-3">
             <a
-              href={`http://localhost:4000/api/v1/reports/${audit.id}/view`}
+              href={`${apiBase}/reports/${audit.id}/view`}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-bold transition shadow-sm"
@@ -172,7 +176,7 @@ export default function AuditDetailPage() {
               <span>View Full Report</span>
             </a>
             <a
-              href={`http://localhost:4000/api/v1/reports/${audit.id}/download`}
+              href={`${apiBase}/reports/${audit.id}/download`}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition"
             >
               <Download className="w-3.5 h-3.5" />
