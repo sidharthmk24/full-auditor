@@ -2,7 +2,7 @@
   "name": "website-auditor-monorepo",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@12.18.0",
+  "packageManager": "pnpm@9.15.4",
   "scripts": {
     "dev": "turbo run dev --concurrency=25",
     "dev:apps": "turbo run dev --filter=./apps/*",
@@ -29,6 +29,7 @@
     ]
   },
   "devDependencies": {
+    "next": "15.1.7",
     "turbo": "^2.4.4",
     "typescript": "^5.7.3"
   }
