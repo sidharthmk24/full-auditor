@@ -60,6 +60,12 @@ export async function fetchApi<T = any>(
   });
 
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== 'undefined') {
+      removeAuthToken();
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
+    }
     let errMessage = 'Request failed';
     try {
       const errorJson = await res.json();

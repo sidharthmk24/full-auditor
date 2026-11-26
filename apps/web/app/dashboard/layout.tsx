@@ -7,18 +7,24 @@ import { getAuthToken } from '../../lib/api';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
-    setMounted(true);
     const token = getAuthToken();
     if (!token) {
-      router.push('/login');
+      setIsAuthenticated(false);
+      router.replace('/login');
+    } else {
+      setIsAuthenticated(true);
     }
   }, [router]);
 
-  if (!mounted) {
-    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400">Loading...</div>;
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400 font-medium text-sm">
+        Checking authentication...
+      </div>
+    );
   }
 
   return (
