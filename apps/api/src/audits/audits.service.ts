@@ -19,11 +19,19 @@ export class AuditsService {
   }
 
   async getLiveFrame(auditId: string): Promise<string | null> {
-    return this.redisClient.get(`audit:${auditId}:live_frame`);
+    try {
+      return await this.redisClient.get(`audit:${auditId}:live_frame`);
+    } catch {
+      return null;
+    }
   }
 
   async getLiveAction(auditId: string): Promise<string | null> {
-    return this.redisClient.get(`audit:${auditId}:live_action`);
+    try {
+      return await this.redisClient.get(`audit:${auditId}:live_action`);
+    } catch {
+      return null;
+    }
   }
 
   async listAudits(organizationId: string, limit = 20) {
