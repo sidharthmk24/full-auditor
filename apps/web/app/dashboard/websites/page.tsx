@@ -14,6 +14,7 @@ import {
   Clock,
   Sparkles,
   X,
+  Loader2,
 } from 'lucide-react';
 import { Header } from '../../../components/layout/header';
 import { fetchApi } from '../../../lib/api';
@@ -28,10 +29,20 @@ export default function WebsitesPage() {
   const [maxPages, setMaxPages] = useState(25);
   const [maxDepth, setMaxDepth] = useState(3);
   const [formError, setFormError] = useState<string | null>(null);
+  const [triggeringWebsiteId, setTriggeringWebsiteId] = useState<string | null>(null);
+
+  const runningStatuses = ['QUEUED', 'DISCOVERING', 'CRAWLING', 'TESTING', 'ANALYZING', 'REPORTING'];
 
   const { data: websites = [], isLoading } = useQuery({
     queryKey: ['websites'],
     queryFn: () => fetchApi('/websites'),
+    refetchInterval: (query) => {
+      const data = query.state.data as any[];
+      const hasRunning = data?.some((w) =>
+        runningStatuses.includes(w.audits?.[0]?.status)
+      );
+      return hasRunning || triggeringWebsiteId ? 1500 : 10000;
+    },
   });
 
   const addWebsiteMutation = useMutation({
@@ -53,16 +64,32 @@ export default function WebsitesPage() {
   });
 
   const triggerAuditMutation = useMutation({
-    mutationFn: (websiteId: string) =>
-      fetchApi(`/websites/${websiteId}/audits`, {
+    mutationFn: (websiteId: string) => {
+      setTriggeringWebsiteId(websiteId);
+      return fetchApi(`/websites/${websiteId}/audits`, {
         method: 'POST',
         body: JSON.stringify({}),
-      }),
-    onSuccess: () => {
+      });
+    },
+    onSuccess: (newAudit: any) => {
+      queryClient.setQueryData(['websites'], (old: any[]) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((w) => {
+          if (w.id === newAudit.websiteId) {
+            return {
+              ...w,
+              audits: [newAudit],
+            };
+          }
+          return w;
+        });
+      });
       queryClient.invalidateQueries({ queryKey: ['audits'] });
       queryClient.invalidateQueries({ queryKey: ['websites'] });
+      setTriggeringWebsiteId(null);
     },
     onError: (err: any) => {
+      setTriggeringWebsiteId(null);
       alert(`Could not start audit: ${err.message}`);
     },
   });
@@ -131,7 +158,13 @@ export default function WebsitesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {websites.map((website: any) => (
+            {websites.map((website: any) => {
+              const latestAudit = website.audits?.[0];
+              const isAuditRunning =
+                (latestAudit && runningStatuses.includes(latestAudit.status)) ||
+                triggeringWebsiteId === website.id;
+
+              return (
               <div
                 key={website.id}
                 className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:border-slate-300 transition flex flex-col justify-between"
@@ -176,14 +209,29 @@ export default function WebsitesPage() {
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => triggerAuditMutation.mutate(website.id)}
-                    disabled={triggerAuditMutation.isPending}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-50"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                    <span>Run Audit</span>
-                  </button>
+                  {isAuditRunning ? (
+                    <Link
+                      href={latestAudit?.id ? `/dashboard/audits/${latestAudit.id}` : '#'}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg shadow-sm transition animate-pulse"
+                      title={latestAudit?.currentStep || 'Audit in progress - click to view live stream'}
+                    >
+                      <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
+                      <span>
+                        {latestAudit?.progressPercent
+                          ? `Audit Running (${latestAudit.progressPercent}%)`
+                          : 'Audit Running...'}
+                      </span>
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => triggerAuditMutation.mutate(website.id)}
+                      disabled={triggerAuditMutation.isPending && triggeringWebsiteId === website.id}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-50"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>Run Audit</span>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => {
@@ -198,7 +246,8 @@ export default function WebsitesPage() {
                   </button>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
       </div>

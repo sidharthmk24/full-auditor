@@ -14,6 +14,17 @@ export class WebsitesService {
       where: { organizationId },
       include: {
         configuration: true,
+        audits: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            status: true,
+            progressPercent: true,
+            currentStep: true,
+            createdAt: true,
+          },
+        },
         _count: {
           select: {
             audits: true,
