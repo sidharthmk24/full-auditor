@@ -109,7 +109,10 @@ const auditWorker = new Worker(
           const res = await fetch(link.targetUrl, {
             method: 'HEAD',
             signal: AbortSignal.timeout(6000),
-            headers: { 'User-Agent': 'AIAuditorBot/1.0' },
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            },
           });
           statusCode = res.status;
           if (statusCode >= 400) {
@@ -159,9 +162,27 @@ const auditWorker = new Worker(
       const storageDir = path.join(baseUploadsDir, 'artifacts', auditId);
       const allUiBreaks: any[] = [];
 
-      const targetPagesToTest = crawlResults.pages.slice(0, 3);
+      // Prioritize 200 OK pages, but ALWAYS include at least the root page so viewport screenshots are recorded
+      let targetPagesToTest = crawlResults.pages.filter((p) => p.statusCode === 200).slice(0, 3);
+      if (targetPagesToTest.length === 0 && crawlResults.pages.length > 0) {
+        targetPagesToTest = [crawlResults.pages[0]];
+      }
+      if (targetPagesToTest.length === 0) {
+        targetPagesToTest = [
+          {
+            url,
+            path: '/',
+            statusCode: 200,
+            title: '',
+            loadTimeMs: 0,
+            pageSizeBytes: 0,
+            isIndexable: true,
+            hasSitemap: false,
+          },
+        ];
+      }
+
       for (const page of targetPagesToTest) {
-        if (page.statusCode !== 200) continue;
 
         try {
           const browserResult = await browserEngine.testPage(

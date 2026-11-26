@@ -112,8 +112,11 @@ export class WebsiteCrawler {
         const response = await fetch(normUrl, {
           signal: controller.signal,
           headers: {
-            'User-Agent': 'AIAuditorBot/1.0 (+https://websiteauditor.local/bot)',
-            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            Accept:
+              'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
           },
           redirect: 'follow',
         });
@@ -244,7 +247,15 @@ export class WebsiteCrawler {
   private async discoverSitemap(rootUrl: string): Promise<string[]> {
     try {
       const sitemapUrl = new URL('/sitemap.xml', rootUrl).toString();
-      const res = await fetch(sitemapUrl, { method: 'GET', signal: AbortSignal.timeout(5000) });
+      const res = await fetch(sitemapUrl, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000),
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          Accept: 'application/xml,text/xml,*/*;q=0.9',
+        },
+      });
       if (!res.ok) return [];
 
       const xml = await res.text();

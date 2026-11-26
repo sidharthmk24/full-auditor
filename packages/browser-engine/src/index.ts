@@ -142,7 +142,8 @@ export class BrowserEngine {
     // 1. Create an isolated browser context with exact Desktop width: 1440px
     const context: BrowserContext = await this.browser!.newContext({
       viewport: { width: 1440, height: 900 },
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 AIAuditorBot/1.0',
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
       ignoreHTTPSErrors: true,
     });
 
